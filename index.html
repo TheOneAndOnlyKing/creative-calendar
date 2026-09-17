@@ -661,15 +661,24 @@
       if (!(e.name in counts)) { counts[e.name] = 0; order.push(e.name); }
       counts[e.name]++;
     });
-    var sorted = order.slice().sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); });
     var extra = [];
     events.forEach(function (e) {
       if (!e.scenario) return;
       if ((e.name in counts) || extra.indexOf(e.name) >= 0) return;
       extra.push(e.name);
     });
-    extra.sort();
-    var names = sorted.concat(extra);
+    /* chips grouped by section in canonical order (Weekly, Monthly, …),
+       unknown sections last; within a section, by occurrence count */
+    var secOf = {};
+    SECTION_ORDER.forEach(function (s) { s.events.forEach(function (n) { secOf[n] = s.name; }); });
+    events.forEach(function (e) { if (!(e.name in secOf)) secOf[e.name] = e.section; });
+    var secRank = {};
+    SECTION_ORDER.forEach(function (s, i) { secRank[s.name] = i; });
+    var names = order.concat(extra).sort(function (a, b) {
+      var ra = secRank[secOf[a]] != null ? secRank[secOf[a]] : SECTION_ORDER.length;
+      var rb = secRank[secOf[b]] != null ? secRank[secOf[b]] : SECTION_ORDER.length;
+      return ra - rb || counts[b] - counts[a] || a.localeCompare(b);
+    });
     var sig = names.join('|');
     if (!force && sig === hotbarSig) return;
     hotbarSig = sig;
